@@ -298,8 +298,8 @@ title(paste0('Observed data with K=',round(k.optimized,2), ', ARL=', ARL.set, ' 
 plot(cusum1$cusum, type='p', bty='l',pch=16, col=cusum1$alarm+1)
 abline(h= h.optimized)
 title(paste0('CUSUM statistic with H=', round(h.optimized,2),' red=ALARM'))
-
 ```
+
 
 ## Play around with ARL yourself
 ```{r ,echo=FALSE }
@@ -347,24 +347,63 @@ title(paste0('CUSUM statistic with H=', round(h.optimized,2),' red=ALARM'))
 -Or we can use regression-based approaches to detect increase in a single time point
 -Next time we will discuss the fitting and use of these harmonic models to account for both seasonality and trend
 
-Here is an (un-optimized) example of a seasonal CUSUM 
-```{r glr,exercise=TRUE}
-mod1<- algo.glrnb(salmonellaDisProg,control=list(
+
+# Or use the CUSUM algorithm with seasonal adjustment
+What happens when you play around with K threshold here? (ie try to crank it up to 4)
+```{r cusum.seas,exercise=TRUE, fig.width=6, fig.height=8}
+k.set=2.0
+h.set=2.26
+cusum1<-algo.cusum(salmonellaDisProg, control = list(range=53:312, 
+                                                k = k.set , 
+                                                h = h.set, 
+                                                m='glm', #turn on seasonal adjustment
+                                                trans = "standard", 
+                                                alpha = NULL ))
+
+m.plot<-c(rep(NA, times=(cusum1$control$range[1]-1)),cusum1$control$m)
+cusum.plot<-c(rep(NA, times=(cusum1$control$range[1]-1)),cusum1$cusum)
+alarm.vec<- c(rep(1, times=(cusum1$control$range[1]-1)),cusum1$alarm+2 )
+col.alarm.vec=c('gray', 'black','red')
+
+par(mfrow=c(2,1))
+plot(cusum1$disProgObj$observed, bty='l',type='p', ylab='Observed cases',col=col.alarm.vec[alarm.vec], pch=16)
+#abline(h= k.optimized )
+points(m.plot, type='l', col='gray')
+title(paste0('Observed data',k.set))
+
+plot(cusum.plot, type='p', bty='l',pch=16, col=col.alarm.vec[alarm.vec])
+abline(h= h.set)
+title(paste0('CUSUM statistic with H=', h.set,' red=ALARM'))
+```
+
+Here is an alternative algorithm for seasonal CUSUM 
+-What happens if you turn trend to true?
+```{r glr.seas,exercise=TRUE,fig.width=6, fig.height=8}
+mod1<- algo.glrpois(salmonellaDisProg,control=list(
    range=c(53:312),
    c.ARL=5,
-  mu0=list( trend=T, #Trend adjustment?
+   M=-1, #How many time points back should we look? Negative 1: use all cases
+   ret=c('value'),
+  mu0=list( trend=F, #Trend adjustment?
    S=1) #Seasonality? 0=no, 1 or 2 = # harmonics to include
 ))
 
-ucl.vec<- c(rep(NA, times=(mod1$control$range[1]-1)),mod1$upperbound )
+glr.vec<- c(rep(NA, times=(mod1$control$range[1]-1)),mod1$upperbound[,1] )
+m.vec<- c(rep(NA, times=(mod1$control$range[1]-1)),mod1$control$mu0 )
+
 alarm.vec<- c(rep(1, times=(mod1$control$range[1]-1)),mod1$alarm+2 )
 col.alarm.vec=c('gray', 'black','red')
 
-par(mfrow=c(1,1))
-plot(mod1$disProgObj$observed[,1], bty='l',type='p', col=col.alarm.vec[alarm.vec], pch=16)
-points(ucl.vec, type='l', col='black')
+par(mfrow=c(2,1), mar=c(2,2,2,1))
+plot(mod1$disProgObj$observed[,1], bty='l',type='p', ylab='Observed cases',col=col.alarm.vec[alarm.vec], pch=16)
+points(m.vec, type='l', col='black')
+title('Observed cases and mean')
+
+plot(glr.vec, bty='l',type='p', ylab='GLR statistic',col=col.alarm.vec[alarm.vec], pch=16)
+abline(h=mod1$control$c.ARL, lty=2)
+title('GLR statistic')
 #abline(h= k.optimized )
-title(paste0('Observed data with K=',round(k.optimized,2), ', ARL=', ARL.set, ' weeks'))
+#title(paste0('Observed data with K=',round(k.optimized,2), ', ARL=', ARL.set, ' weeks'))
 
 
 ```
