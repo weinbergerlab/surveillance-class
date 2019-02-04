@@ -1,0 +1,13 @@
+name: aberration_detection
+title: aberration_detection
+username:
+account: weinbergerlab
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 685911
+bundleId: 1853476
+url: https://weinbergerlab.shinyapps.io/aberration_detection/
+when: 1549223992.92129
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: aberration_detection.html|cusum.html|aberration_detection_files/figure-html/plot.hist.limits.ts-1.png|aberration_detection_files/figure-html/plot.hist.limits.ts-2.png|cusum_files/figure-html/ears-1.png|cusum_files/figure-html/plot.hist.limits.ts-1.png|cusum_files/figure-html/plot.hist.limits.ts-2.png|cusum_files/figure-html/plot.ts-1.png

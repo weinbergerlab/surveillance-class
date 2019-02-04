@@ -1,0 +1,282 @@
+---
+title: "Introduction to R"
+tutorial:
+  id: "com.example.tutorials.my-first-tutorial"
+  version: 0.7
+output: 
+  learnr::tutorial:
+    progressive: true
+  html_document:
+      toc: TRUE
+runtime: shiny_prerendered
+---
+
+```{r setup2, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(learnr)
+library(surveillance)
+library(lubridate)
+data("salmNewport")
+
+#Any object created here will be available in global environment. Any objects created within excercise chunks are only available within the chunk
+salm.data<-salmNewport@observed #save the salmonella Newport data as a simple matrix
+
+ from <- as.Date("2000-01-02") #YYYY-MM-DD
+ date.index <- seq.Date(from=from,length.out =nrow(salm.data) ,by="week")
+ 
+ bavaria <- salm.data[,'Bavaria'] #Creates vector named 'bavaria'
+length.bavaria<-length(bavaria)
+time.index <- 1:length.bavaria 
+mat1<-cbind(time.index, bavaria) #combine into matrix
+
+```
+
+
+# Introduction to R
+In this tutorial, we will learn how to manipulate and plot data in R
+
+## Let's start by looking at some real data
+These data on cases of Salmonella strain Newport in Germany come from the surveillance package in R, which we will use later this semester. It provides data from 16 regions in Germany. The data are stored as a *matrix*, with 16 columns and 528 rows, representing weekly data for ~10 years 
+
+```{r salm1a, exercise=TRUE, exercise.eval=FALSE}
+head(salm.data) #View first 6 rows of data
+```
+
+```{r salm1b, exercise=TRUE, exercise.eval=FALSE}
+dimnames(salm.data) # see names of the rows and columns
+```
+
+```{r salm1c, exercise=TRUE, exercise.eval=FALSE}
+str(salm.data) # tells you the structure of the object--what type of variables are in there, dimensions, etc
+```
+
+```{r salm1d, exercise=TRUE, exercise.eval=FALSE}
+dim(salm.data) #Get the dimensions of the Salmonella data
+```
+
+
+
+
+
+Try to just plot the Salmonella data from a single region (plot). To obtain data for a single region, you can refer to the column by the name (exactly as it appears in dimnames) or by position (i.e., 2). Try to plot Berlin instead
+
+```{r salm2, exercise=TRUE, exercise.eval=FALSE}
+plot(salm.data[,'Bavaria'], type='l')
+```
+
+## Working with vectors and matrices
+
+In R you can work with individual numbers (ie calculate value of 1+1) with vectors of numbers (ie a variable), or with matrices. Data can also be stored in 'data frames' which is like a matrix but that can store a mix of numeric variables and character variables.
+
+First, let's extract one of the columns from the Salmonella data, create an index variable and join them together into a new matrix
+
+```{r vectormaker, exercise=TRUE, exercise.eval=FALSE}
+bavaria <- salm.data[,'Bavaria'] #Creates vector named 'bavaria'
+length.bavaria<-length(bavaria)
+length.bavaria
+```
+
+```{r vectormaker.b, exercise=TRUE, exercise.eval=FALSE}
+time.index <- 1:length.bavaria #create an index 1,2,3... that has same length as bavaria
+  
+bavaria[1:50] #print first 50 observations
+time.index[1:50] #print first 50 observations
+
+```
+
+
+Vectors (variables) can be combined together into a matrix or a dataframe. (Data frames have the advantage that they can include both numeric and character variables). Try to change the code so that you print first 20 rows of data instead of first 10. 
+
+```{r matrixmaker1, exercise=TRUE, exercise.eval=FALSE}
+time.index <- 1:length.bavaria #create an index 1,2,3... that has same length as bavaria
+mat1<-cbind(time.index, bavaria) #combine into matrix
+mat1[1:10,] #print mat1, first 10 rows
+
+```{r matrixmaker11, exercise=TRUE, exercise.eval=FALSE}
+#print the variable names
+dimnames(mat1)
+```
+
+```{r matrixmaker12, exercise=TRUE, exercise.eval=FALSE}
+#Get number of rows and columns of mat1
+nrow(mat1)
+```
+
+```{r matrixmaker13, exercise=TRUE, exercise.eval=FALSE}
+ncol(mat1)
+```
+
+You can refer to and extract columns or rows by their position or by their name. Try to change this to extract the first column
+```{r matrixmaker1a, exercise=TRUE, exercise.eval=FALSE}
+bavaria <- salm.data[,'Bavaria'] #Creates vector named 'bavaria'
+length.bavaria<-length(bavaria)
+time.index <- 1:length.bavaria #create an index 1,2,3... that has same length as bavaria
+mat1<-cbind(time.index, bavaria) #combine into matrix
+mat1
+```
+
+```{r matrixmaker1aa, exercise=TRUE, exercise.eval=FALSE}
+
+#extract  column 1 from the matrix mat1 (first 10 observations)
+mat1[1:10,'bavaria']
+mat1[1:10,2]
+```
+
+You can subset the matrix by refering to specific columns by name or position. Try to also print Saxony, and print first 10 rows instead of 20
+```{r matrixmaker1b, exercise=TRUE, exercise.eval=FALSE}
+salm.subset <-salm.data[,c('Bavaria', 'Berlin')]
+salm.subset[1:20,]
+
+#Equivalent to: salm.subset <-salm.data[,c(2,3)]
+
+```
+
+## Make and manipulate matrices
+
+Create an empty matrix (filled with missing values), then fill it in
+```{r matrixMaker, exercise=TRUE, exercise.eval=FALSE}
+
+#let's make a matrix with same number of rows as th salmonella data and 3 columns
+salm.rows<-nrow(salm.data)
+mat2<- matrix(NA, nrow=salm.rows, ncol=3)
+mat2[1:20,] #Print first 20 rows
+
+```
+
+This code replaces the first column of the matrix with a vector of observations. Try to replace the second column wih the observed data from Berlin. Let's also try to use rnorm to generate random numbers for column 3
+
+```{r matrixMaker2, exercise=TRUE, exercise.eval=FALSE}
+
+salm.rows<-nrow(salm.data)
+mat2<- matrix(NA, nrow=salm.rows, ncol=3)
+mat2[,1]<- salm.data[,'Bavaria']
+mat2[1:20,]
+
+```
+
+## Arithmetic in R
+Now let's do some simple arithmetic with these variables, and combine them into a matrix. 
+We might want to add 2 variables, and combine into a matrix with named columns, print first 20 rows
+```{r aggregateRows, exercise=TRUE, exercise.eval=FALSE}
+  combo<- salm.data[,'Bavaria'] + salm.data[,'Berlin']
+  df1<- cbind('bavaria'= salm.data[,'Bavaria'], 'berlin'= salm.data[,'Berlin'], 'combo'=combo)
+  df1[1:20,]
+```
+
+Add a constant (0.5) to the 3rd column. Create a new vector that is equal to Berlin+Bavaria+0.5
+```{r addconstant, exercise=TRUE, exercise.eval=FALSE}
+  combo<- salm.data[,'Bavaria'] + salm.data[,'Berlin']
+  df1<- cbind('bavaria'= salm.data[,'Bavaria'], 'berlin'= salm.data[,'Berlin'], 'combo'=combo)
+  comboAdd <-df1[,'combo'] + 0.5 
+  df1[1:20,'combo'] #print first 20 rows of variable 'combo'
+  comboAdd[1:20]
+```
+
+We also might want to aggregate across all columns. We can do this with the rowSums function or with the apply function, wchich repeats each operation by row. Then print first 20 observations
+```{r aggregateRows3, exercise=TRUE, exercise.eval=FALSE}
+national<- rowSums(salm.data)
+national[1:20]
+
+national2<- apply(salm.data,1,sum)  # 1 refers to rows and 2 refers to columns
+national2[1:20]
+```
+
+When adding together two vectors or adding a vector to a matrix, the dimensions need to matrch (ie the length of the vector needs to be the same as the number of rows in the matrix)
+```{r calculator3, exercise=TRUE, exercise.eval=FALSE}
+
+x1<- salm.data[1:100,'Bavaria'] #first 100 observations from Bavaria
+x2<- salm.data[1:100,'Berlin'] #first 100 observations from Berlin
+x3<- salm.data[1:50,'Saxony'] #first 100 observations from Saxony
+
+x1+x2
+
+```
+
+
+## Working with dates in R
+Working with date variables can be tricky in R. The lubridate package canmake your life easier.
+
+```{r dates1, exercise=TRUE, exercise.eval=FALSE}
+#To make an empty time sequence using dates
+from <- as.Date("2000-01-02") #YYYY-MM-DD
+timefill <- seq.Date(from=from,length.out =nrow(salm.data) ,by="week") 
+timefill[1:200] #print first few years
+```
+
+If you have a vector of dates in a 'character' format, you need to tell R it is a date using as.Date, and tell it what the original format was. For instance mm/dd/yy has the format "%m/%d/%y"
+```{r dates2, exercise=TRUE, exercise.eval=FALSE}
+#If date is in format mm/dd/yy
+date1<-c("01/01/98", "02/01/98","03/01/98")
+date2 = as.Date(as.character(date1), format = "%m/%d/%y")  #Note use a lowercase Y with 4digit year
+date2
+
+```
+
+Here the input date is in the format mm/dd/yyyy. We tell R this by using format "%m/%d/%Y" Note the uppercase Y here, which indicates a 4 digit year
+
+```{r dates3, exercise=TRUE, exercise.eval=FALSE}
+#If date is in format mm/dd/yyyy
+date1<-c("01/01/1998", "02/01/1998","03/01/1998")
+date2 = as.Date(as.character(date1), format = "%m/%d/%Y")  #Note use an uppercase Y with 4digit year
+date2
+
+```
+
+This is very flexible and can take in most any format. For instance, here we have dd-mm-yy, we tell R it is in the format "%d-%m-%y"
+
+```{r dates4, exercise=TRUE, exercise.eval=FALSE}
+#If date is in format dd-mm-yy
+date1<-c("01-01-98", "01-02-98","01-03-98")
+date2 = as.Date(as.character(date1), format = "%d-%m-%y")  
+date2
+
+```
+
+
+## Making useful plots
+
+Let's plot the data. 'type='l' makes a line plot, which is good for time series
+
+```{r plot1, exercise=TRUE, exercise.eval=FALSE}
+  national<- rowSums(salm.data)
+  plot(date.index,national, type='l')
+```
+
+### Now let's make the plot look nicer by changing some plot options
+Turn off the right and top borders (bty='l'), add x and y axis labels (xlab and ylab), change the color of the line (col=), and line width (lwd)
+
+```{r plot2, exercise=TRUE, exercise.eval=FALSE}
+  national<- rowSums(salm.data)
+  plot(date.index,national, type='l', bty='l', ylab='Counts', xlab='time', col='blue', lwd=0.5)
+```
+
+### Plot the first 3 columns, which represent 3 different states. We can do this using a loop, which plots column 1, then column 2, then column 3. They are arranged in a row (mfrow=c(1,3)). Add a title by extracting the names of the locations into a vector (dimnames) and taking the i'th element of the vector
+
+```{r plot3, exercise=TRUE, exercise.eval=FALSE}
+  par(mfrow=c(1,3))
+for(i in 1:3){
+  plot(date.index,salm.data[,i], type='l', bty='l', ylab='Counts', xlab='time')
+    title(dimnames(salm.data)[[2]][i])
+
+}
+```
+
+Here we can plot 4 plots in a 2x2 array. Try doing a 2x3 plot with 6 states
+```{r plot4, exercise=TRUE, exercise.eval=FALSE}
+  par(mfrow=c(2,2), mar=c(3,2,1,1))
+for(i in 1:4){
+  plot(date.index,salm.data[,i], type='l', bty='l', ylab='Counts', xlab='time')
+  title(dimnames(salm.data)[[2]][i])
+}
+```
+
+### Now let's plot all of the time series at once using a matrix plot (matplot)
+
+```{r plot5, exercise=TRUE, exercise.eval=FALSE}
+  matplot(date.index,salm.data, type='l', bty='l', ylab='Counts', xlab='time')
+```
+
+
+
+## RStudio
+Now let's go to RStudio and get familiar with the interface and learn how to set the working directory, and how to install and load packages 
