@@ -93,6 +93,7 @@ time<-seq.Date(from=as.Date("1990-01-01"),length.out=length(cases), by='week')
 plot(time, cases, bty='l', type='l')
 
 ```
+
 ```{r plot.ts,echo=TRUE, exercise=TRUE}
 
 plot( ds1$date, ds1$cases, type='l', bty='l', ylab='Cases', xlab='Date')
@@ -346,4 +347,24 @@ title(paste0('CUSUM statistic with H=', round(h.optimized,2),' red=ALARM'))
 -Or we can use regression-based approaches to detect increase in a single time point
 -Next time we will discuss the fitting and use of these harmonic models to account for both seasonality and trend
 
+Here is an (un-optimized) example of a seasonal CUSUM 
+```{r glr,exercise=TRUE}
+mod1<- algo.glrnb(salmonellaDisProg,control=list(
+   range=c(53:312),
+   c.ARL=5,
+  mu0=list( trend=T, #Trend adjustment?
+   S=1) #Seasonality? 0=no, 1 or 2 = # harmonics to include
+))
 
+ucl.vec<- c(rep(NA, times=(mod1$control$range[1]-1)),mod1$upperbound )
+alarm.vec<- c(rep(1, times=(mod1$control$range[1]-1)),mod1$alarm+2 )
+col.alarm.vec=c('gray', 'black','red')
+
+par(mfrow=c(1,1))
+plot(mod1$disProgObj$observed[,1], bty='l',type='p', col=col.alarm.vec[alarm.vec], pch=16)
+points(ucl.vec, type='l', col='black')
+#abline(h= k.optimized )
+title(paste0('Observed data with K=',round(k.optimized,2), ', ARL=', ARL.set, ' weeks'))
+
+
+```

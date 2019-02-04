@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(surveillance)
 library(lubridate)
 ```
 
@@ -100,6 +101,77 @@ plot(d4$date, d4$a00_a09, type='l', bty='l', ylab='Cases A00-A09')
 ```
 
 ## Now let's format the data for the surveillance package
+Need to determine the year and week of the first data Can use week(date) and year(date) functions to do this
+
+```{r}
+lubridate::year(d4$date)
+week(d4$date)
+a00_DP <- create.disProg(
+      week = 1:nrow(d4), #Index of observations
+      observed = d4$a00_a09 ,
+      state=matrix(0, nrow=nrow(d4), ncol=1),
+      start = c(2000, 53))
+```
+
+Let's look for aberrations during the 2007 calendar years first, then see how it performs for 2008-2011 Need to  first determine indexes for thise year
+
+Let's try historical limits with default threshold
+```{r hist.limits, exercise=TRUE}
+test.index<-which(lubridate::year(d4$date) %in% c(2007)) #returns vector of the eek numbers for 2008 and 2009
+
+hl2<-algo.cdc(a00_DP,control = list(b = 5,  #N years in baseline
+                                               m = 1, #N 4 week periods on either side
+                                              alpha=0.05, #Signifiance level
+                                               range=test.index)) #weeks tested
+
+#This stuff just makes a pretty plot
+col.alarms<-c(rep(1, times=(hl2$control$range[1]-1)) , (hl2$alarm+2))
+cols<-c('gray', 'black', 'red')
+all.agg<-rollapply(a00_DP$observed,4,sum, align='right', fill=NA)
+plot(all.agg , pch=16 , bty='l', ylab='Cases', xlab='Week', col=cols[col.alarms])
+points(c(rep(NA, times=(hl2$control$range[1]-1)) , hl2$upperbound), type='l')
+title('Historical limits Cases vs threshold: alarms are RED')
+
+```
 
 
+Let's try Farrington method, with and without down-weighting past epidemics
+```{r farrington1, echo=TRUE, exercise=TRUE}
+test.index<-which(lubridate::year(d4$date) %in% c(2007)) #returns vector of the eek numbers for 2008 and 2009
+
+mod1<-algo.farrington(a00_DP, #dataset to use
+                control=list(range=test.index,
+                b=5, #How many years of historical data to use
+                w=3, #Number of weeks before and after current week to include in                                 model fitting
+                reweight=TRUE, #Do you want to downweight past epidemics?
+                plot=FALSE
+                ))
+
+col.alarms<-c(rep(1, times=(mod1$control$range[1])-1) , (mod1$alarm+2))
+cols<-c('gray', 'black', 'red')
+plot(d4$date,mod1$disProgObj$observed , pch=16 , bty='l', ylab='Cases', xlab='Week', col=cols[col.alarms])
+points(d4$date[1:max(mod1$control$range)],c(rep(NA, times=(mod1$control$range[1]-1)) , mod1$upperbound), type='l')
+title('Farrington. Cases vs threshold: alarms are RED')
+```
+
+```{r farrington1, echo=TRUE, exercise=TRUE}
+test.index<-which(lubridate::year(d4$date) %in% c(2008:2011)) #returns vector of the eek numbers for 2008 and 2009
+
+mod1<-algo.farrington(a00_DP, #dataset to use
+                control=list(range=test.index,
+                b=5, #How many years of historical data to use
+                w=3, #Number of weeks before and after current week to include in                                 model fitting
+                reweight=TRUE, #Do you want to downweight past epidemics?
+                plot=FALSE,
+                alpha=0.01
+                ))
+
+col.alarms<-c(rep(1, times=(mod1$control$range[1])-1) , (mod1$alarm+2))
+cols<-c('gray', 'black', 'red')
+plot(mod1$disProgObj$observed , pch=16 , bty='l', ylab='Cases', xlab='Week', col=cols[col.alarms])
+points(c(rep(NA, times=(mod1$control$range[1]-1)) , mod1$upperbound), type='l')
+title('Farrington. Cases vs threshold: alarms are RED')
+```
+
+There is a drop in cases apparent in the data in the last couple of years. How does this affect the algorithm?
 
