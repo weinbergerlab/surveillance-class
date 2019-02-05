@@ -21,69 +21,85 @@ date: Date admitted to hospital
 
 You have been provided with a subset of the larger database that includes ICD10 codes that start with the letter "A" (certain infectious diseases). We can learn more about the ICD10 codes here: https://www.icd10data.com/ICD10CM/Codes/A00-B99
 
-### First read in the data 
+You have code suggestions below. Where you see a 'ZZZ' this indicates something that needs to be changed to get the code to work properly
+
+### First read in the data using read.csv()
 ```{r readscsv}
-d1<-read.csv('./aberration detection/chile_under5y_aCHAPTER.csv')
+d1<-read.csv(ZZZ)
+
 ```
 
-## Tell R that 'date' is a date variable and assign a format
+## Tell R that 'date' is a date variable and assign a format (as.Date() function)
 see https://www.statmethods.net/input/dates.html
 ```{r date_format}
-d1$date<- as.Date(d1$date, "%d%b%Y")
+d1$date<- as.Date( ZZZ   , "%d%b%Y")
 ```
 
-Then create a new variablecalled 'week.date' that has the date of the Sunday of the week in which the admission occurred. The lubridate has some functions that make this easier. You want to round the date down to the nearest Sunday. The floor_data function can accomplish this: https://rawgit.com/rstudio/cheatsheets/master/lubridate.pdf
+Then create a new variable called 'week.date' that has the date of the Sunday of the week in which the admission occurred. The lubridate has some functions that make this easier. You want to round the date down to the nearest Sunday. The floor_date() function can accomplish this: https://rawgit.com/rstudio/cheatsheets/master/lubridate.pdf
 
 ```{r date_format2}
-#"round" the date down to 
-d1$week.date<-floor_date(d1$date, unit='week')
+d1$week.date<-floor_date( ZZZ  , unit='week')
+
 ```
 
 
-### Then do some basic explorations. What is the distibution of ages? of Dates? (make a histogram for each)
+### Then do some basic explorations. What is the distibution of ages? of Dates? (make a histogram for each) hist()
 ```{r hist1}
-hist(d1$EDAD)
-hist(d1$date, breaks=10)
+hist(  ZZZ , breaks=10)
+
 ```
 
 ### Which codes are the most commonly used in this databse?
-Make a table of the codes, sorted most to least common.
+Make a table of the codes, sorted most to least common. table()
 
 ```{r freq.codes, echo=FALSE}
-sort(table(d1$diag1),decreasing=T)
+
+sort(table(ZZZ   ),decreasing=T)
+
 ```
 
+Now flag presence of A00-A09 in the data; first extract the first 3 digits of diag1 to a new variable using substr().
 
 ```{r}
-icd10.3digits<-substr(d1$diag1,1,3) #extract 1st 3 digits from IC10 code
+icd10.3digits<-substr(d1$diag1,1 ,ZZZ ) #extract 1st 3 digits from IC10 code
 icd10.3digits[1:10] #view first 10
-
-#Initialize variables
-d1$a00_a09<-rep(0, nrow(d1))
-d1$a37<-rep(0, nrow(d1))
-
-d1$a00_a09[icd10.3digits %in% c('A00', 'A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09') ]<-1
-d1$a37[icd10.3digits %in% c('A37') ]<-1
-
-d1$year<-year(d1$date)
-table(d1$year, d1$a00_a09)
-table(d1$year, d1$a37)
-
 ```
 
-## Let's aggregate now by week.date
+Then create a variable that is 1 if A00-A09 code is there, 1 otherwise 
 
 ```{r}
-d1.split<-split(d1, d1$week.date)
-d2<- sapply(d1.split, function(x) sum(x$a00_a09) )
+d1$a00_a09<-rep(0, nrow(d1))  #Initialize variable--set all to 0
+d1$a00_a09[  ZZZ %in% c( ZZZ,ZZZ,ZZZ...    ) ] <-  1 # if code present, replace  with 1
+table(d1$a00_a09, d1$diag1)
+```
+
+
+## Let's aggregate now by week.date to get a count for cases of A00-A09 per week
+
+An easy way to do this is to split the dataset into pieces in a list using the split() function, splitting by week.date;  
+
+```{r}
+d1.split<-split( x=ZZZ  , f=ZZZ ) #specify the dataset (x) and the variable used to split(f)
+```
+
+Then take the sum of A00-A09 in each of the chunks and paste it all back into a matrix using sapply.
+
+```{r}
+d2<- sapply(d1.split, function(x) sum(x$ZZZ  ) )
+
 ```
 
 It is also important to make sure that the time series is 'filled'--if there are weeks with 0 counts, it needs to be represented in the time series. to do this, let's make a vector of week.dates and see if it is of the length as our data
+
 ```{r}
-dates<-as.Date(sort(names(d2))) #Etract and sort the weekdates
+dates<-as.Date(sort(names(ZZZ  ))) #Extract and sort the weekdates
 date.seq <- seq.Date(from=dates[1], to=dates[length(dates)], by='week') #create a sequence from first to last week date
 length(dates)==length(date.seq) #test if the time series is complete
+```
 
+In this case, our time series is filled. If it wasn't, we would merge in our vector of dates with the original data, and for weeks that had no counts in original data, they will show up as 'NA' in the merged dataset. We will then replace the NA with 0.
+
+```{r}
 #data frame 1 has just the time series with all weeks represented 
 date.seq<-as.data.frame(date.seq)
 names(date.seq)<-'date' #make sure column name is 'date'
@@ -94,34 +110,54 @@ d3$date<-as.Date(row.names(d3))
 
 d4<- merge(d3, date.seq, all=T, by='date')
 names(d4)<-c('date', 'a00_a09')
+
+d4$a00_a09[is.na(d4$a00_a09)] <- 0
+
+d5<-d4  
+
+write.csv('./d5.csv') #can save a copy of the dataset if you want
+
 ```
 
+*Dataset d5 will be used in all further analyses. If you got stuck prior to this, go ahead and read in and use the pre-formatted dataset 'd5.csv'*
 ```{r}
-plot(d4$date, d4$a00_a09, type='l', bty='l', ylab='Cases A00-A09')
+#d5<- read.csv('./d5.csv') #Only run this if you were not able to complete previous steps
+```
+
+
+#Plot your time series!
+```{r}
+plot(ZZZ, ZZZ, type='l', bty='l', ylab='Cases A00-A09')
 ```
 
 ## Now let's format the data for the surveillance package
 Need to determine the year and week of the first data Can use week(date) and year(date) functions to do this
 
 ```{r}
-lubridate::year(d4$date)
-week(d4$date)
-a00_DP <- create.disProg(
-      week = 1:nrow(d4), #Index of observations
-      observed = d4$a00_a09 ,
-      state=matrix(0, nrow=nrow(d4), ncol=1),
-      start = c(2000, 53))
+lubridate::year(ZZZ)
+week(ZZZ)
 ```
 
-Let's look for aberrations during the 2007 calendar years first, then see how it performs for 2008-2011 Need to  first determine indexes for thise year
+```{r}
+a00_DP <- create.disProg(
+      week = 1:nrow(ZZZ), #Index of observations
+      observed = ZZZ ,
+      state=matrix(0, nrow=nrow(ZZZ), ncol=1),
+      start = c(ZZZ, ZZZ))
+```
 
-Let's try historical limits with default threshold
-```{r hist.limits, exercise=TRUE}
-test.index<-which(lubridate::year(d4$date) %in% c(2007)) #returns vector of the eek numbers for 2008 and 2009
+Let's look for aberrations during the 2007-2008 calendar years first, then see how it performs for 2009-2011 Need to  first determine indexes for thise year. Let's try historical limits with default threshold
 
-hl2<-algo.cdc(a00_DP,control = list(b = 5,  #N years in baseline
-                                               m = 1, #N 4 week periods on either side
-                                              alpha=0.05, #Signifiance level
+Use the 'year()' function to determine the  
+```{r }
+test.index<-which(lubridate::year(d5$ZZZ) %in% c(ZZZ)) #returns vector of the week numbers for 2008 and 2009
+```
+
+```{r }
+hl2<-algo.cdc(ZZZ,  #disProg dataset you created above
+              control = list(b = ZZZ,  #N years in baseline typical is 5
+                                               m = Z, #N 4 week periods on either side, typical is 1
+                                              alpha=0.05, #Signifiance level--can be modified
                                                range=test.index)) #weeks tested
 
 #This stuff just makes a pretty plot
@@ -134,19 +170,18 @@ title('Historical limits Cases vs threshold: alarms are RED')
 
 ```
 
-
 Let's try Farrington method, with and without down-weighting past epidemics
-```{r farrington1, echo=TRUE, exercise=TRUE}
-test.index<-which(lubridate::year(d4$date) %in% c(2007)) #returns vector of the eek numbers for 2008 and 2009
+```{r }
 
-mod1<-algo.farrington(a00_DP, #dataset to use
+mod1<-algo.farrington(ZZ, #dataset to use
                 control=list(range=test.index,
-                b=5, #How many years of historical data to use
-                w=3, #Number of weeks before and after current week to include in                                 model fitting
+                b=ZZZ, #How many years of historical data to use typical is 3-5
+                w=ZZZ, #Number of weeks before and after current week to include in                                 model fitting; typical is 3
                 reweight=TRUE, #Do you want to downweight past epidemics?
                 plot=FALSE
                 ))
 
+#Generates the pretty plots
 col.alarms<-c(rep(1, times=(mod1$control$range[1])-1) , (mod1$alarm+2))
 cols<-c('gray', 'black', 'red')
 plot(d4$date,mod1$disProgObj$observed , pch=16 , bty='l', ylab='Cases', xlab='Week', col=cols[col.alarms])
@@ -154,24 +189,84 @@ points(d4$date[1:max(mod1$control$range)],c(rep(NA, times=(mod1$control$range[1]
 title('Farrington. Cases vs threshold: alarms are RED')
 ```
 
-```{r farrington1, echo=TRUE, exercise=TRUE}
-test.index<-which(lubridate::year(d4$date) %in% c(2008:2011)) #returns vector of the eek numbers for 2008 and 2009
+Things to consider
+1. There is a drop in cases apparent in the data in the last couple of years. How does this affect the algorithms?
+2. How important is the reweighting for the Farrington algorithm?
+```{r }
 
-mod1<-algo.farrington(a00_DP, #dataset to use
-                control=list(range=test.index,
-                b=5, #How many years of historical data to use
-                w=3, #Number of weeks before and after current week to include in                                 model fitting
-                reweight=TRUE, #Do you want to downweight past epidemics?
-                plot=FALSE,
-                alpha=0.01
-                ))
 
-col.alarms<-c(rep(1, times=(mod1$control$range[1])-1) , (mod1$alarm+2))
-cols<-c('gray', 'black', 'red')
-plot(mod1$disProgObj$observed , pch=16 , bty='l', ylab='Cases', xlab='Week', col=cols[col.alarms])
-points(c(rep(NA, times=(mod1$control$range[1]-1)) , mod1$upperbound), type='l')
-title('Farrington. Cases vs threshold: alarms are RED')
 ```
 
-There is a drop in cases apparent in the data in the last couple of years. How does this affect the algorithm?
+## UNADJUSTED CUSUM
 
+Let's first determine some estimates for k and h  
+```{r , fig.width=6, fig.height=8}
+in.control.mean<- mean(ZZZ[ZZZ:ZZZ]) #choose some of the observations to calculate non-epidemic mean
+ARL.set <- ZZZ #aHow many weeks do you want to go (on average) without false alarm?
+epidemic.increase=ZZZ #how big of an increase do you want to detect? ie a 2-fold increase
+
+##Ask R for values of K and H thresholds based on criteria set above
+s1=(epidemic.increase-1)/sqrt(in.control.mean)
+optimized.parms<-findH(ARL0=ARL.set, theta0=in.control.mean, s = s1, rel.tol = 0.03, roundK = FALSE, distr = c("poisson"))
+k.optimized<- optimized.parms['k']
+h.optimized<- optimized.parms['h']
+
+k.optimized
+h.optimized
+```
+
+```{r}
+time.points.test<-which(lubridate::year(d5$date) %in% c(ZZZ,ZZZ,ZZZ)) #returns vector of the week numbers for the indicted years
+
+cusum1<-algo.cusum(ZZZ, 
+                    control = list(range=time.points.test,  #time index of time points to test
+                                  k = k.optimized , 
+                                  h = h.optimized, 
+                                  trans = "standard", 
+                                  alpha = NULL ))
+
+#PLOT THE OUTPUT
+par(mfrow=c(2,1))
+plot(cusum1$disProgObj$observed[time.points.test], bty='l',type='l')
+abline(h= k.optimized )
+title(paste0('Observed data with K=',round(k.optimized,2), ', ARL=', ARL.set, ' weeks'))
+
+plot(cusum1$cusum, type='p', bty='l',pch=16, col=cusum1$alarm+1)
+abline(h= h.optimized)
+title(paste0('CUSUM statistic with H=', round(h.optimized,2),' red=ALARM'))
+
+```
+
+## seasonally-adjusted CUSUM
+
+This is highly seasonal data and unadjusted CUSUM not great. An alternative is to adjust the expected counts using a harmonic. Try to empirically set the K and H thresholds by fiddling around with the 2007-2008 data
+
+```{r,, fig.width=6, fig.height=8}
+time.points.test<-which(lubridate::year(d5$date) %in% c(ZZZ:ZZZ)) #returns vector of the week numbers for the indicted years in the range
+k.set=ZZZ
+h.set=ZZZ
+
+cusum2<-algo.cusum(ZZZ, 
+                    control = list(range=time.points.test,  #time index of time points to test
+                                  k = k.set , 
+                                  h =h.set,
+                                  trans = "standard", 
+                                  m='glm', #This adds the seasonal model
+                                  alpha = NULL ))
+
+#Plotting...
+m.plot<-c(rep(NA, times=(cusum2$control$range[1]-1)),cusum2$control$m)
+cusum.plot<-c(rep(NA, times=(cusum2$control$range[1]-1)),cusum2$cusum)
+alarm.vec<- c(rep(1, times=(cusum2$control$range[1]-1)),cusum2$alarm+2 )
+col.alarm.vec=c('gray', 'black','red')
+
+par(mfrow=c(2,1))
+plot(cusum2$disProgObj$observed, bty='l',type='p', ylab='Observed cases',col=col.alarm.vec[alarm.vec], pch=16)
+#abline(h= k.optimized )
+points(m.plot, type='l', col='gray')
+title(paste0('Observed data',k.set))
+
+plot(cusum.plot, type='p', bty='l',pch=16, col=col.alarm.vec[alarm.vec])
+abline(h= h.set)
+title(paste0('CUSUM statistic with H=', h.set,' red=ALARM'))
+```

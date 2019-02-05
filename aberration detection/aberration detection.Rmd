@@ -290,7 +290,7 @@ h.optimized<- optimized.parms['h']
 
 cusum1<-algo.cusum(salmonellaDisProg, control = list(range=53:312, k = k.optimized , h = h.optimized, trans = "standard", alpha = NULL ))
 
-par(mfrow=c(2,1))
+par(mfrow=c(2,1), mar=c(2,2,1,1))
 plot(cusum1$disProgObj$observed[53:312], bty='l',type='l')
 abline(h= k.optimized )
 title(paste0('Observed data with K=',round(k.optimized,2), ', ARL=', ARL.set, ' weeks'))
