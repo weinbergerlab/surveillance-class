@@ -202,11 +202,12 @@ Things to consider
 Let's first determine some estimates for k and h  
 ```{r , fig.width=6, fig.height=8}
 in.control.mean<- mean(ZZZ[ZZZ:ZZZ]) #choose some of the observations to calculate non-epidemic mean
-ARL.set <- ZZZ #aHow many weeks do you want to go (on average) without false alarm?
+ARL.set <- ZZZ #aHow many weeks do you want to go (on average) without false alarm? (hint, you need to pick a really big number here when the data are seasonal, oherwise you'll get an error)
 epidemic.increase=ZZZ #how big of an increase do you want to detect? ie a 2-fold increase
 
 ##Ask R for values of K and H thresholds based on criteria set above
-s1=(epidemic.increase-1)/sqrt(in.control.mean)
+theta1 <- in.control.mean*epidemic.increase
+s1=(theta1-in.control.mean)/sqrt(in.control.mean)
 optimized.parms<-findH(ARL0=ARL.set, theta0=in.control.mean, s = s1, rel.tol = 0.03, roundK = FALSE, distr = c("poisson"))
 k.optimized<- optimized.parms['k']
 h.optimized<- optimized.parms['h']
@@ -222,7 +223,7 @@ cusum1<-algo.cusum(ZZZ,
                     control = list(range=time.points.test,  #time index of time points to test
                                   k = k.optimized , 
                                   h = h.optimized, 
-                                  trans = "standard", 
+                                  trans = "none", 
                                   alpha = NULL ))
 
 #PLOT THE OUTPUT
@@ -239,7 +240,7 @@ title(paste0('CUSUM statistic with H=', round(h.optimized,2),' red=ALARM'))
 
 ## seasonally-adjusted CUSUM
 
-This is highly seasonal data and unadjusted CUSUM not great. An alternative is to adjust the expected counts using a harmonic. Try to empirically set the K and H thresholds by fiddling around with the 2007-2008 data
+This is highly seasonal data and unadjusted CUSUM not great. An alternative is to adjust the expected counts using a harmonic. Try to empirically set the K and H thresholds by fiddling around with the 2007-2008 data. Also transform the data to be standard normalnormal. 
 
 ```{r,, fig.width=6, fig.height=8}
 time.points.test<-which(lubridate::year(d5$date) %in% c(ZZZ:ZZZ)) #returns vector of the week numbers for the indicted years in the range
@@ -250,7 +251,7 @@ cusum2<-algo.cusum(ZZZ,
                     control = list(range=time.points.test,  #time index of time points to test
                                   k = k.set , 
                                   h =h.set,
-                                  trans = "standard", 
+                                  trans = "standard", #transforms the data
                                   m='glm', #This adds the seasonal model
                                   alpha = NULL ))
 
