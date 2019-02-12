@@ -1,0 +1,324 @@
+---
+title: "flu"
+author: "Dan Weinberger"
+date: "February 6, 2019"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(surveillance)
+library(lubridate)
+library(zoo)
+library(reshape2)
+library(MASS)
+```
+
+```{r chile.import, include=FALSE}
+#ch1<-read.csv('C:/Users/dmw63/Desktop/My documents h/TEACHING/chile data/chile01_11.csv')
+# 
+# ch.J.chapter<-ch1[substr(ch1$diag1,1,3) %in% c('J09','J10','J11','J12','J13','J14','J15','J16','J17','J17','J18','J19', 'J20', 'J21','J22'),c('diag1','EDAD','date')]
+# 
+# write.csv(ch.J.chapter,'C:/Users/dmw63/Desktop/My documents h/TEACHING/chile data/chile_j_chapter.csv')
+# saveRDS(ch.J.chapter,'C:/Users/dmw63/Desktop/My documents h/TEACHING/chile data/chile_j_chapter.rds')
+# ch.J.chapter<-read.csv('C:/Users/dmw63/Desktop/My documents h/TEACHING/chile data/chile_j_chapter.csv')
+
+```
+
+##Background
+It is April 2009. You are an epidemiologist at the Ministry of Health in Chile. There are reports of a novel strain of influenza cirulating in Mexico and in the U.s. and there are fears of a global pandemic. You have been tasked with setting up a hospital-based surveillance system for flu to determine the severity of the epidemic in different age groups, potentially to inform vaccine allocation strategies. The flu season in the southern hemisphere is rapidly approaching, so we will make use of the national hospital discharge database to track cases of respiratory disease.
+
+EDAD: age in years
+diag1: primary diagnosis, in ICD10 coding
+date: Date admitted to hospital 
+
+You have been provided with a subset of the larger database that includes ICD10 codes J09-J22: https://www.icd10data.com/ICD10CM/Codes/A00-B99
+
+### First read in the data 
+Change the directory as needed to point to where the .csv file is saved
+```{r readscsv}
+#d1<-read.csv('C:/Users/dmw63/Desktop/My documents h/TEACHING/chile data/chile_j_chapter.csv')
+ d1<-readRDS('C:/Users/dmw63/Desktop/My documents h/TEACHING/chile data/chile_j_chapter.rds')
+```
+
+## Tell R that 'date' is a date variable and assign a format
+see https://www.statmethods.net/input/dates.html
+```{r date_format}
+d1$date<- as.Date(d1$date, "%d%b%Y")
+```
+
+Then create a new variablecalled 'week.date' that has the date of the Sunday of the week in which the admission occurred. The lubridate has some functions that make this easier. You want to round the date down to the nearest Sunday. The floor_data function can accomplish this: https://rawgit.com/rstudio/cheatsheets/master/lubridate.pdf
+
+```{r date_format2}
+#"round" the date down to 
+d1$week.date<-floor_date(d1$date, unit='week')
+head(d1)
+
+```
+
+
+### Then do some basic explorations. What is the distibution of ages? of Dates? (make a histogram for each)
+```{r hist1}
+hist(d1$EDAD, xlab='Age (years)' )
+hist(d1$date, breaks=10)
+```
+
+### Frequency of the codes
+
+
+```{r freq.codes, echo=FALSE}
+sort(table(d1$diag1),decreasing=T)
+```
+
+Let's look at the ICD10 code dictionary to decide what codes to include
+https://www.icd10data.com/ICD10CM/Codes/J00-J99
+
+```{r}
+icd10.3digits<-substr(d1$diag1,1,3) #extract 1st 3 digits from IC10 code
+#icd10.3digits[1:10] #view first 10
+
+#Initialize variables
+d1$j09_j18<-rep(0, nrow(d1))
+#ou could either list out J09, J10, J11... or use this >= or <=--just be careful with it and check your work
+d1$j09_j18[icd10.3digits >= c('J09') & icd10.3digits <= c('J18')  ]<-1
+table(d1$j09_j18, d1$diag1) #Ceeck your work
+
+```
+
+
+##Create age groups
+```{r agegrp.set}
+
+d1$agegrp <-NA #Initialize variable
+d1$agegrp[d1$EDAD>=0 &d1$EDAD<5] <-1
+d1$agegrp[d1$EDAD>=5 &d1$EDAD<18] <-2
+d1$agegrp[d1$EDAD>=18 &d1$EDAD<40] <-3
+d1$agegrp[d1$EDAD>=40 &d1$EDAD<65] <-4
+d1$agegrp[d1$EDAD>=65 &d1$EDAD<115] <-5
+agelabs<-c('<5y','5-17y','18-39y', '40-64y', '65+y')
+
+```
+
+## Let's aggregate now by week.date AND age group
+
+```{r}
+
+d2<-d1[,c('agegrp','week.date','j09_j18')] #Just keep the relevant variables
+d2.m<-melt(d2, id.vars=c('week.date','agegrp') )
+d2.c<-dcast(d2.m, week.date~agegrp, fun.aggregate  =sum)
+names(d2.c)<-c('date','ag1','ag2','ag3','ag4','ag5')
+```
+
+##Let's split the dataset now
+We will create one that has the historic period through April 2009, we will use this for training the model. And then a prospective dataset that includes data through 2011.  
+```{r }
+d.hist<- d2.c[d2.c$date<=as.Date('2009-04-01'),]
+
+```
+
+
+```{r plot.ts}
+matplot(d.hist$date, d.hist[,-1], type='l', bty='l')
+```
+
+```{r}
+par(mfrow=c(2,3))
+for( i in 1:5){
+  plot(d.hist$date, d.hist[,1+i], type='l', bty='l')
+  title(agelabs[i], bty='l')
+}
+
+```
+#From the time series, it looks like there might be a data quality issue, with some stray observations prior to 2001. we will delete these
+```{r cleanup}
+ d3<-d.hist[d.hist$date>='2001-01-01', ]
+```
+
+```{r}
+par(mfrow=c(2,3))
+for( i in 1:5){
+  plot(d3$date, d3[,1+i], type='l', bty='l')
+  title(agelabs[i], bty='l')
+}
+
+```
+
+## let's set up some baselines!
+OK, so now let's pretend we only have data through April 2009, when the news of the pandemic hit. We will create a new dataset with the suffix 'hist' for historical, to make our lives easier, we will also create a separate dataframe that has dates, harmonic variables, etc
+
+#Now create the harmonics and trend variables that we need
+```{r}
+d3$index<-1:nrow(d3)
+d3$sin52<-sin(2*pi*d3$index/52.1429) #52.1429 weeks/year on ave
+d3$cos52<-cos(2*pi*d3$index/52.1429) #52.1429 weeks/year on ave
+d3$sin26<-sin(2*pi*d3$index*2/52.1429) #52.1429 weeks/year on ave
+d3$cos26<-cos(2*pi*d3$index*2/52.1429) #52.1429 weeks/year on ave
+
+```
+
+#Now create the harmonics and trend variables that we need
+Save model results in a *list*. Need to create an empty list first called 'reg.results'. then we will loop through the age groups to fit the models
+```{r}
+  reg.results.lm <- vector("list", 5) 
+  reg.results.robust <- vector("list", 5) 
+   age.vec<- c("ag1", "ag2",   "ag3",   "ag4" ,  "ag5") #What are the column names for the P&I variables we
+
+```
+
+We will fit both a standard linear regression model and a robust regression model in the same loop. This saves us from having to write out the same code 5 times for each age group, which would be error-prone and tedious.
+```{r}
+
+#Repeat process for all 5 age groups
+    for(i in 1:5){ # loop through the 5 age groups
+      ag.select<-age.vec[i] #Selects which age group to analyze
+      outcome.var<-log(d3[,ag.select]) #pulls out the relevant outcome variable
+     #reg.results[[i]]<- lm( outcome.var ~ sin52 +cos52+index , data= d3.hist      )
+     reg.results.robust[[i]]<- rlm( outcome.var ~ sin52 +cos52+sin26+cos26+index , data= d3.hist      )
+     reg.results.lm[[i]]<- lm( outcome.var ~ sin52 +cos52+sin26+cos26+index , data= d3.hist      )
+
+          }
+
+```
+
+#Next generate a *prediction* interval for these models
+Note that prediction intervals are wider than confidence intervals. They account for uncertainty in the model fitting process (as regular confidence intervals do), and they account for the distribution of observations.
+
+```{r}
+d4<-d2.c[d2.c$date>='2001-01-01', ] #Remember we trimmed off the first couple observations from d2.c
+
+d4$index<-1:nrow(d4)
+d4$sin52<-sin(2*pi*d4$index/52.1429) #52.1429 weeks/year on ave
+d4$cos52<-cos(2*pi*d4$index/52.1429) #52.1429 weeks/year on ave
+d4$sin26<-sin(2*pi*d4$index*2/52.1429) #52.1429 weeks/year on ave
+d4$cos26<-cos(2*pi*d4$index*2/52.1429) #52.1429 weeks/year on ave
+
+```
+
+```{r}
+#Note CDC uses a 90% prediction interval for flu with robust regression
+ pred.intervals.robust<-sapply(reg.results.robust, predict,  newdata=d4, interval="predict", simplify=FALSE,level = 0.90) 
+ pred.intervals.lm<-sapply(reg.results.lm, predict,  newdata=d4, interval="predict", simplify=FALSE,level = 0.90) 
+
+```
+
+Compare intervals and alarms from regular linear regression with robust regression
+```{r, fig.width=10, fig.height=10}
+ age.vec<- c('ag1','ag2','ag3','ag4','ag5')
+ time.marks<- seq.Date(from=as.Date('2001-01-01'), to=as.Date('2012-01-01'), by='year')
+  timelabels<-format(time.marks,"%Y")
+
+  par(mfcol=c(5,2))
+for(i in 1:5){
+  pred.robust.orig.scale<-exp(pred.intervals.robust[[i]])
+  alarm.col<-(d4[,age.vec[i]] >pred.robust.orig.scale[,3])+2
+  alarm.col[d4$date<=as.Date('2009-04-01')]<-1
+  cols<-c('grey','black','red')
+  plot.range<-range(c(pred.robust.orig.scale,d4[,age.vec[i]]), na.rm=T)
+  matplot(d4$date, pred.robust.orig.scale , lty=c(1,2,2), xaxt='n', col='gray',ylim=plot.range, type='l', bty='l')
+  axis(side=1, at=time.marks, labels=timelabels)
+  points(d4$date,d4[,age.vec[i]], pch=16, col=cols[alarm.col])
+  title(agelabs[i])
+}
+  
+for(i in 1:5){
+  pred.lm.orig.scale<-exp(pred.intervals.lm[[i]])
+  alarm.col<-(d4[,age.vec[i]] >pred.lm.orig.scale[,3])+2
+  alarm.col[d4$date<=as.Date('2009-04-01')]<-1
+  cols<-c('grey','black','red')
+  plot.range<-range(c(pred.lm.orig.scale,d4[,age.vec[i]]), na.rm=T)
+  matplot(d4$date, pred.lm.orig.scale , lty=c(1,2,2), xaxt='n', col='gray',ylim=plot.range, type='l', bty='l')
+  axis(side=1, at=time.marks, labels=timelabels)
+  points(d4$date,d4[,age.vec[i]], pch=16, col=cols[alarm.col])
+  title(agelabs[i])
+}
+
+```
+
+## Excess cases by age group
+Calculate excess as observed case - the model fitted baseline. With this dataset, it appears that robust regression and a standard regression work similarly, though the robust regression has slightly tighter prediction intervals (more weeks flagged as 'epidemic')
+```{r, fig.width=9, fig.height=5}
+excess.cases.robust <- vector("list", 5) 
+excess.cases.lm <- vector("list", 5) 
+
+  time.marks<- seq.Date(from=as.Date('2001-01-01'), to=as.Date('2012-01-01'), by='year')
+  timelabels<-format(time.marks,"%Y")
+year<-year(d4$date)
+
+par(mfrow=c(2,3))
+for(i in 1:5){
+pred.robust.orig.scale<-exp(pred.intervals.robust[[i]])
+pred.lm.orig.scale<-exp(pred.intervals.lm[[i]])
+
+excess.cases.robust[[i]]<- d4[,age.vec[i]]- pred.robust.orig.scale 
+excess.cases.lm[[i]]<- d4[,age.vec[i]]- pred.lm.orig.scale 
+
+matplot(d4$date,excess.cases.robust[[i]], type='l', col='gray', lty=c(1,2,2),xaxt='n', bty='l')
+  axis(side=1, at=time.marks, labels=timelabels)
+  abline(h=0, lty=2)
+  title(agelabs[i])
+}
+
+
+```
+
+## Now let's do a Serfling
+Flu season in southern hemisphere is ~ May-August
+```{r,fig.width=5, fig.height=10}
+excess.cases.serf<-vector("list", 5) 
+  serfling.results <- vector("list", 5) 
+
+  month.hist<-month(d4$date)
+
+ age.vec<- c('ag1','ag2','ag3','ag4','ag5')
+#Repeat process for all 5 age groups
+ par(mfcol=c(5,1), mar=c(2,2,1,1))
+for(i in 1:5){
+     # loop through the 5 age groups
+     ag.select<-age.vec[i] #Selects which age group to analyze
+     outcome.var<-log(d4[,ag.select]) #pulls out the relevant outcome variable
+     outcome.var.offseason<-outcome.var
+     outcome.var.offseason[month.hist %in% c(5,6,7,8)]<-NA #set outcme to missing during flu season
+     outcome.var.offseason[d4$date>=as.Date('2009-04-01')]<-NA #set outcme to missing for post-pandemic period
+
+          serfling.results[[i]]<- lm( outcome.var.offseason ~ sin52 +cos52+ sin26+cos26+index , data= d4      )
+}
+   pred.intervals.serfling<-sapply(serfling.results, predict,  newdata=d4, interval="predict", simplify=FALSE,level = 0.90) 
+
+ for(i in 1:5){
+    pred.serfling.orig.scale<-exp(pred.intervals.serfling[[i]])
+    excess.cases.serf[[i]]<- d4[,age.vec[i]]- pred.serfling.orig.scale 
+    alarm.col<-(d4[,age.vec[i]] >pred.serfling.orig.scale[,3])+2
+    alarm.col[d4$date<=as.Date('2009-04-01')]<-1
+    cols<-c('grey','black','red')
+    plot.range<-range(c(pred.serfling.orig.scale,d4[,age.vec[i]]), na.rm=T)
+    matplot(d4$date, pred.serfling.orig.scale , lty=c(1,2,2), xaxt='n', col='gray',ylim=plot.range, type='l', bty='l')
+    axis(side=1, at=time.marks, labels=timelabels)
+    points(d4$date,d4[,age.vec[i]], pch=16, col=cols[alarm.col])
+    title(agelabs[i])
+}
+    
+
+
+```
+
+##Compare excess cases from the 3 approaches
+
+```{r}
+  for(i in 1:5){      
+  print(cbind.data.frame (aggregate(excess.cases.robust[[i]][,'fit'], by=list(year), FUN=sum),
+                    'regression'=aggregate(excess.cases.lm[[i]][,'fit'], by=list(year), FUN=sum)[,2],
+                    'serfling'=aggregate(excess.cases.serf[[i]][,'fit'], by=list(year), FUN=sum)[,2]
+                    ))
+  }
+```
+```
+
+
+
+
+
+
+
+
