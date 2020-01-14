@@ -13,21 +13,24 @@ runtime: shiny_prerendered
 
 ```{r setup2, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+#install.packages("surveillance")
 library(learnr)
 library(surveillance)
 library(lubridate)
-data("salmNewport")
+data("salmNewport") # this is pulling data from within the surveillance package 
 
 #Any object created here will be available in global environment. Any objects created within excercise chunks are only available within the chunk
 salm.data<-salmNewport@observed #save the salmonella Newport data as a simple matrix
 
- from <- as.Date("2000-01-02") #YYYY-MM-DD
- date.index <- seq.Date(from=from,length.out =nrow(salm.data) ,by="week")
+ from.date <- as.Date("2000-01-02") #YYYY-MM-DD
+ date.index <- seq.Date(from=from.date,length.out =nrow(salm.data) ,by="week")
  
+ # This is only selecting the column titled "Bavaria" 
  bavaria <- salm.data[,'Bavaria'] #Creates vector named 'bavaria'
+ # we want our time to run the length of the column (i.e. the number of observations)
 length.bavaria<-length(bavaria)
 time.index <- 1:length.bavaria 
-mat1<-cbind(time.index, bavaria) #combine into matrix
+mat1<-cbind(time.index, bavaria) #cbind = column bind into a matrix 
 
 ```
 
@@ -44,6 +47,7 @@ head(salm.data) #View first 6 rows of data
 
 ```{r salm1b, exercise=TRUE, exercise.eval=FALSE}
 dimnames(salm.data) # see names of the rows and columns
+
 ```
 
 ```{r salm1c, exercise=TRUE, exercise.eval=FALSE}
@@ -62,6 +66,8 @@ Try to just plot the Salmonella data from a single region (plot). To obtain data
 
 ```{r salm2, exercise=TRUE, exercise.eval=FALSE}
 plot(salm.data[,'Bavaria'], type='l')
+
+
 ```
 
 ## Working with vectors and matrices
@@ -76,8 +82,8 @@ length.bavaria<-length(bavaria)
 length.bavaria
 ```
 
-```{r vectormaker.b, exercise=TRUE, exercise.eval=FALSE}
-time.index <- 1:length.bavaria #create an index 1,2,3... that has same length as bavaria
+```{r vectormakerb, exercise=TRUE, exercise.eval=FALSE}
+time.index <- 1:length.bavaria #create an index 1,2,3... that has same length as bavariascc   
   
 bavaria[1:50] #print first 50 observations
 time.index[1:50] #print first 50 observations
