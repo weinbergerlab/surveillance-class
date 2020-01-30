@@ -3,6 +3,7 @@ title: "Aberration detection methods using the surveillance package"
 output: 
   html_document:
       toc: TRUE
+runtime: shiny
 ---
 
 ```{r setup2, include=FALSE}
