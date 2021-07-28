@@ -1,0 +1,399 @@
+---
+title: "Intro to data management in R"
+author: "Dan Weinberger"
+date: "2/20/2020"
+output: 
+  ioslides_presentation:
+      widescreen: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(lubridate)
+library(reshape2)
+library(sp)
+```
+
+## Why use R for data management?
+- R has a steep learning curve, but...
+- Free software
+- Can do anything from basic analysis and data management to advanced statistical and mathematical modeling
+- Beautiful graphics
+- Can make reproducible analysis, unlike spreadsheet software
+
+## Step 1: Create an R project
+- Organizing your code and data from the beginning of an analysis is critical.
+- An R project is a way to organize all of your files in 1 place. 
+1. On your computer create a folder called "Project 1". Within this folder create sub-folders called "Data" and "R Code"
+2. In RStudio, create a new project by going to File/New project/Existing Directory. Then select your "Project 1" folder
+3. "Project 1" is now your working directory. Whenever you want to repoen the project, go to the folder Project 1 and click on the file that ends in .RProj.
+
+- **Protip**: Use a version control program like Git/Github with RStudio to track changes. When you create your project, select "Version control"
+
+## Step 2: Load your data into R
+- Save your dataset in the Data folder in your project
+Usually you will have a spreadsheet created in another program. It might be a text file (.csv, .txt) or a MS Excel file (.xlsx, .xls). Or you might even have SPSS or SAS files created in other stats softwares. R can import any of these.
+
+To import a csv file and save it as 'ds1', use this code, substituting the name of your file for "datasetname"
+```{r, echo=T, eval=F}
+ds1 <- read.csv('./Data/datasetname.csv')
+```
+
+```{r, echo=T, eval=F}
+#install.packages('readxl') #run one time only
+library(readxl) #run each time you re-open R
+ds1 <- read_excel('./Data/datasetname.xlsx')
+```
+or an R data file (.rds)
+```{r,echo=T }
+ds1<-readRDS('./Data/cincinnati.rds')
+```
+There are also functions to import SAS files (read.sas7bdatin sas7bdat package) and SPSS files (read.sppp in foreign package)
+
+## Issues with importing data
+Often datasets will have information on the top rows that you don't want to import. For instance, the owner of the data might include information about the source in the top few rows We do not want to import this into R. Let's say there are 5 rows with this type of information that we want to skip, and the row with the column names is column 6. We modify our import statement by using 'skip='
+```{r, echo=T, eval=F}
+ds1 <- read.csv('./Data/datasetname.csv', skip=5)
+```
+
+Or import an Excel spreadsheet. 
+```{r, echo=T, eval=F}
+library(readxl) #run each time you re-open R
+ds1 <- read_excel('./Data/datasetname.xlsx', skip=5)
+```
+
+
+## Step 3: check the variable types
+- R has 3 basic types of data it stores: numeric, character, and factor. Anything that represents a number should be stored as numeric (e.g., number of cases of disease). Labels made up of letters are typically stored as a character. Factors can be used for discrete categories (e.g., age groups, state names). Often when you import a dataset, by default it will store character variables as factors (and sometime will be confused by numbers as well). Use the str() function to check the structure of the data . 
+
+## Variable type
+
+This shows we have latitude and longitude stored as numeric variables (num), Time of incident is a date-time(month/day/Year HH:MM) but is stored as a factor variabl. The Cause of the visit is stored as a factor variable. And the neighborhood is stored as a factor variable
+
+```{r, echo=T}
+str(ds1)
+```
+
+## Step 4: Convert date variable to a date-time format
+
+Sample formats for dates and datetimes:
+
+- 2010-11-01  "%Y-%m-%d"
+- 11/01/2010   "%m/%d/%Y"
+- 11/01/10   "%m/%d/%y"
+- Nov-01-2010  %b-%d-%Y"
+- Nov-01-2010 13:02  %b-%d-%Y %H:%M"
+```{r, echo=T}
+ds1$datetime<-as.POSIXlt(ds1$CREATE_TIME_INCIDENT, #variable with the datetime
+                         format=c("%m/%d/%Y %H:%M")) 
+```
+
+## Extract the date and hour to a new variable
+Whenevr we are dealing with dates, lubridate package has a lot of useful functions
+```{r, eval=F}
+library(reshape2)
+```
+
+```{r, echo=T}
+ds1$date<-date(ds1$datetime)
+```
+
+Extract the hour of the event (0-23) to a new variables
+```{r, echo=T}
+ds1$hour<-hour(ds1$datetime)
+
+```
+
+## View the formatted dataset
+
+Open the spreadhseet using View(ds1)
+```{r, eval=F ,echo=T}
+View(ds1)
+```
+
+Or just look at the variables you are interested in, showing first 5 rows
+```{r, echo=T}
+ds1[1:5, c('CFD_INCIDENT_TYPE_GROUP','date','hour')]
+```
+
+## Step 5: Explore your data to look for problems
+
+What is the range of values for date and hour? Are there any that don't make sense (e.g. and hour=27?)
+```{r, echo=T}
+range(ds1$date)
+```
+
+```{r, echo=T}
+range(ds1$hour)
+```
+
+## View histograms of key variables
+
+Histogram showing the hour of calls
+```{r, echo=T}
+hist(ds1$hour)
+```
+
+## Simple map of coordinates
+
+```{r, echo=T}
+plot(ds1$LATITUDE_X, ds1$LONGITUDE_X)
+```
+
+## Map again, but exclude outliers
+
+```{r, echo=T}
+plot(ds1$LATITUDE_X[ds1$LATITUDE_X>=30], ds1$LONGITUDE_X[ds1$LATITUDE_X>=30])
+```
+
+
+
+## Step 6: Aggregate your data by day and cause
+
+Create a variable with a value of 1 for every observation. We will then sum this up by day and cause
+```{r, echo=T}
+ds1$one<-1
+```
+
+sum the 'one' variable by date and cause
+```{r, echo=T}
+ds2<-aggregate(ds1$one, by=list('date'=ds1$date, 'cause'=ds1$CFD_INCIDENT_TYPE_GROUP), FUN=sum)
+names(ds2)<-c('date', 'cause','count') #rename the columns
+```
+
+## How do the data look? 
+
+Use the 'head' function to get a preview of the dataset
+
+```{r, eval=F, echo=T}
+head(ds2)
+```
+
+```{r, echo=F}
+head(ds2[-c(1:1000),])
+```
+
+
+## Step 7: Reshape your data from long to wide
+
+The data are currently in th 'long' format, where we have a row for each date and cause. We might want to have it in the wide format, where we have a row for each date and a column for each cause. We can do this with the reshape2 package
+```{r, echo=T, eval=F}
+library(reshape2)
+```
+ First "melt" your data into a format that can be reshapred
+```{r, echo=T}
+ds2.m<-melt(ds2[,c('date','cause', 'count')], #just keep the subset of variables we want to analyze
+            id.vars= c('date', 'cause')) #specify the id variables we want to use
+```
+
+## Then "cast" your data into a new format
+
+the rows come before tilda, columns after tilda date~cause gives each date a row and each cause a column
+```{r, echo=T}
+ds2.c<-dcast(ds2.m, date~cause)
+```
+
+```{r, echo=T}
+head(ds2.c)
+```
+## Replacing missing values
+
+You can see there are a lot of NA (missing) values. This is because not every cause is documented on ever day. We could replace all of the NAs with 0. We can use the apply statement to do this. We will ignore column 1 ([,-1]) and then wherever a column has NA, it is replace with 0. Apply goes column by column and tests whether for missing values
+```{r, echo=T}
+ds2.c[,-1]<- apply(ds2.c[,-1], 
+                   2, #search by column (change to 1 to search by row)
+                   function(x){  #apply this function to all columns
+                     x[is.na(x)]<-0 #if the column enry has an NA, it is replaced with 0
+                   return(x)
+                   }
+                   )
+```
+
+## Data with NA replaced by 0
+
+```{r, echo=T}
+head(ds2.c)
+```
+
+
+## Reshape your data from wide to long
+
+We could also reshape the data back to a long format
+```{r, echo=T}
+ds2.c.m<-melt(ds2.c, id.vars = 'date')
+ds2.c.m.c<- dcast(ds2.c.m, date+variable~.)
+names(ds2.c.m.c)<-c('date','cause','count')
+```
+
+```{r, echo=T}
+head(ds2.c.m.c)
+```
+
+## Plot a daily time series 
+
+We will look at the aggregated stroke cases to see if it worked OK. Looks good!
+```{r, echo=T}
+plot(ds2.c$date,ds2.c$`STROKE (CVA) / TRANSIENT ISCHEMIC ATTACK (TIA)`, type='l', 
+     ylab='Stroke', xlab='Date',
+     bty='l')
+```
+
+## Reshape directly from line list data to daily time series
+
+Subset to just keep columns you want. Keep all rows. this is indicated by the brackets [rows, columns]. Since we want all rows, we leave the area before the comma blank, and after the comma, we provide a vector of the column names
+
+```{r, echo=T}
+ds1.subset<-ds1[,c("date", "hour","CFD_INCIDENT_TYPE_GROUP"  )]
+```
+
+ 'melt' the dataset ds1.subset. The 'molten' dataframe m1 will be used in the next step
+```{r, echo=T}
+m1<- melt(ds1.subset, id.vars=c("CFD_INCIDENT_TYPE_GROUP", 'date', 'hour'))
+```
+
+Now 'cast' the molten dataframe m1 to the wide format. Each row is a date, each column is an incident type
+```{r, echo=T}
+c1 <- dcast(m1 , 
+            date~CFD_INCIDENT_TYPE_GROUP,  # each row is a date, each column is an incident type
+            fun.aggregate = length) #counts how many observations we are aggregating.
+```
+
+## View the cast dataset
+```{r, echo=T}
+head(c1)
+```
+
+## We could also cast to the long format
+
+Each row is a date/incident type combination
+```{r, echo=T}
+c2 <- dcast(m1 , 
+            date+CFD_INCIDENT_TYPE_GROUP ~.,  # each row is a date, each column is an incident type
+            fun.aggregate = length) #counts how many observations we are aggregating.
+```
+
+```{r}
+head(c2)
+```
+
+## Let's make a time series of the  opioid overdoses 
+
+Daily-aggregated time series
+```{r, echo=T, eval=F}
+
+plot(c1$date, c1$`HEROIN OVERDOSE`, 
+     bty='l', #turn off top and right plot border
+     type='l', #line plot
+     ylab='Opioid overdoses (N)',
+     xlab='Date',
+     )
+     abline(v=as.Date(c('2016-05-01', '2016-08-01')),lty=2, col='red') #Period we examined in SATSCAN
+```
+
+## Time series
+
+```{r, echo=F, eval=T}
+
+plot(c1$date, c1$`HEROIN OVERDOSE`, 
+     bty='l', #turn off top and right plot border
+     type='l', #line plot
+     ylab='Opioid overdoses (N)',
+     xlab='Date',
+     )
+     abline(v=as.Date(c('2016-05-01', '2016-08-01')),lty=2, col='red') #Period we examined in SATSCAN
+```
+
+## Mapping in R
+
+R has tons of mapping functions available. 
+
+First, let's just make a map of all the locations. Subset the line list data to just breathing problems
+```{r, echo=T}
+op1<-ds1[ds1$CFD_INCIDENT_TYPE_GROUP=='HEROIN OVERDOSE',] #pull out rows where incident type is heroin overdose
+```
+
+Since we have each location, we can just make a dot at each latitute/longitude
+```{r, fig.height=5, fig.width=5, echo=T, eval=F}
+plot(op1$LONGITUDE_X, #x variable
+     op1$LATITUDE_X , #Y variable
+     pch=16,  #shape of the markers
+     cex=0.5, #size of the marker
+     col='black',  #specify a black marker
+     bty='l')
+```
+
+## Simple map 
+
+```{r, fig.height=5, fig.width=5, echo=F, eval=T}
+plot(op1$LONGITUDE_X, #x variable
+     op1$LATITUDE_X , #Y variable
+     pch=16,  #shape of the markers
+     cex=0.5, #size of the marker
+     col='black',  #specify a black marker
+     bty='l')
+```
+
+## Play with color transparency
+
+The rgb function crates custom color combinations. There are 4 entries, each range from 0 to 1: red, green, blue, alpha. Alpha controls the opacity of the color. rgb(1,0,0,1) would give you a totally opaque red, rgb(0,1,0,1) would give opaque green, and rgb(0,0,0,1) would give opaque blue. rgb(0,0,1,0.5) would give a partially transparent blue. rgb(0,0,0,0.25) would give a transparent black color)
+Let's make transparent red markers
+```{r, echo=T}
+red.t=rgb(1,0,0,alpha=0.02) #red, with transparency
+```
+
+Much better--now we can see hotspots
+```{r, fig.height=5, fig.width=5, echo=T, eval=F}
+plot(op1$LONGITUDE_X, #x variable
+     op1$LATITUDE_X , #Y variable
+     pch=16,  #shape of the markers
+     cex=0.5, #size of the marker
+     col=red.t,  #specify a black marker
+     bty='l')
+```
+
+## Transparent dots
+
+```{r, fig.height=5, fig.width=5, echo=F, eval=T}
+plot(op1$LONGITUDE_X, #x variable
+     op1$LATITUDE_X , #Y variable
+     pch=16,  #shape of the markers
+     cex=0.5, #size of the marker
+     col=red.t,  #specify a black marker
+     bty='l')
+```
+
+## Adding boundaries
+To add boundaries to the map, you need a boundary ("shape file"). We have the neighborhood boundaries, which were downloaded from the Zillow website
+Read in a file that has map coordinates for neighborhood boundaries
+```{r}
+shp.cin<-readRDS( './Data/cincinnati_neighborhood.map.rds')
+```
+
+```{r, echo=T, eval=F}
+plot(shp.cin, bty='l') #plot the boundaries
+points(op1$LONGITUDE_X, #x variable
+     op1$LATITUDE_X , #Y variable
+     pch=16,  #shape of the markers
+     cex=0.5, #size of the marker
+     col=red.t  #specify a transparent red
+    )
+```
+
+## Boundary map
+
+```{r, echo=F, eval=T}
+plot(shp.cin, bty='l') #plot the boundaries
+points(op1$LONGITUDE_X, #x variable
+     op1$LATITUDE_X , #Y variable
+     pch=16,  #shape of the markers
+     cex=0.5, #size of the marker
+     col=red.t  #specify a transparent red
+    )
+```
+
+
+
+
+
+
+

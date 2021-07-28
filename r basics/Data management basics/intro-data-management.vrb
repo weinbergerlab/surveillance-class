@@ -1,0 +1,16 @@
+\frametitle{Plot a daily time series}
+\protect\hypertarget{plot-a-daily-time-series}{}
+
+We will look at the aggregated stroke cases to see if it worked OK.
+Looks good!
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{plot}\NormalTok{(ds2.c}\OperatorTok{$}\NormalTok{date,ds2.c}\OperatorTok{$}\StringTok{`}\DataTypeTok{STROKE (CVA) / TRANSIENT ISCHEMIC ATTACK (TIA)}\StringTok{`}\NormalTok{, }\DataTypeTok{type=}\StringTok{'l'}\NormalTok{, }
+     \DataTypeTok{ylab=}\StringTok{'Stroke'}\NormalTok{, }\DataTypeTok{xlab=}\StringTok{'Date'}\NormalTok{,}
+     \DataTypeTok{bty=}\StringTok{'l'}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{intro-data-management_files/figure-beamer/unnamed-chunk-30-1.pdf}
+

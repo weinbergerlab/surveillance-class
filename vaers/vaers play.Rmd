@@ -1,0 +1,91 @@
+---
+title: "vaers"
+author: "Dan Weinberger"
+date: "1/29/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lubridate)
+```
+
+#We will read in the data from VAERS for reports related to MMR vaccines for 2019
+
+```{r cars}
+# vaers2019<-read.csv('./Data/2019VAERSData.csv')
+# vaers2019.vax<-read.csv('./Data/2019VAERSVAX.csv')
+# vaers2019.symp<-read.csv('./Data/2019VAERSSYMPTOMS.csv')
+# vaers2019.combined<-merge(vaers2019,vaers2019.vax, by="VAERS_ID" , all=T )
+# vaers2019.combined<-merge(vaers2019.combined,vaers2019.symp, by="VAERS_ID" , all=T )
+# mmr2019<- vaers2019.combined[vaers2019.combined$VAX_TYPE=='MMRV',]
+#vaers2019.kids<-vaers2019[vaers2019$AGE_YRS<5,]
+#write.csv(mmr2019,'./Data/2019V_mmr_vaers.csv')
+mmr2019<-read.csv('./Data/2019V_mmr_vaers.csv')
+
+```
+
+Print first 10 symptom complaints
+```{r}
+mmr2019$SYMPTOM_TEXT[1:10]
+```
+
+#Let's flag all people with rash
+the grep() function searches text strings.
+toupper makes all of the letters CAPITAL to avoid issues with upper/lower case when matching
+```{r}
+mmr2019$rash<-0  #initializae the variable called "rash"
+mmr2019$rash[
+  grep('RASH',   #word you want to match
+       toupper(mmr2019$SYMPTOM_TEXT)) #search the symptom text for the keyword
+      ]   <-1   #flag it as 1
+
+
+table(mmr2019$rash)
+
+```
+
+See summaries of categories
+```{r}
+  sort(                  #sort 
+    table(mmr2019$SYMPTOM1),#create summary tabkle  
+    decreasing=T)  #order in decreasing order
+```
+
+#see age distribution of reports
+```{r}
+hist(mmr2019$AGE_YRS)
+```
+
+#Fix data formatting
+```{r}
+mmr2019$RECVDATE<-as.Date(mmr2019$RECVDATE, '%m/%d/%Y')
+```
+
+Round dates down to nearest sunday
+```{r}
+mmr2019$week_date<-floor_date(mmr2019$RECVDATE,"week")
+```
+
+#Count how many cases per week
+```{r}
+mmr2019$count<-1
+N_week<-aggregate(mmr2019$count, by=list('week_date'=mmr2019$week_date), FUN=sum)
+N_week
+```
+```{r}
+plot(N_week$week_date, N_week$x, 
+     type='l', #line plot
+      bty='l', #turn off right and top border
+      ylab='N reports',
+     xlab='Date'
+     )
+```
+
+
+
+```{r}
+hist(mmr2019$RECVDATE, breaks=12)
+```
+
+

@@ -1,0 +1,13 @@
+name: SurveillanceIntroR
+title: SurveillanceIntroR
+username:
+account: weinbergerlab
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 626381
+bundleId: 2728823
+url: https://weinbergerlab.shinyapps.io/SurveillanceIntroR/
+when: 1579035247.39636
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: EMD539_Spring2020_IntroToR.R|Intro-to-R-tutorial.html
